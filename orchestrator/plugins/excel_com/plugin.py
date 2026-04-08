@@ -439,9 +439,31 @@ class ExcelComPlugin(HarnessPlugin):
 
     # ── COM tool implementations ──
 
+    def _upload_to_windows(self, local_path: str) -> str | None:
+        """Upload file to Windows COM server. Returns Windows path or None."""
+        try:
+            with open(local_path, "rb") as f:
+                resp = requests.post(
+                    f"{self.server_url}/upload",
+                    files={"file": (Path(local_path).name, f)},
+                    timeout=120,
+                )
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("windows_path")
+        except Exception:
+            pass
+        return None
+
     def _com_open(self, args: dict, fp: str) -> str:
         visible = args.get("visible", "false") == "true"
-        result = self._com_request("/open", {"path": fp, "visible": visible})
+
+        # Upload file to Windows first
+        windows_path = self._upload_to_windows(fp)
+        if not windows_path:
+            return json.dumps({"error": "Failed to upload file to Windows COM server"})
+
+        result = self._com_request("/open", {"path": windows_path, "visible": visible})
         try:
             data = json.loads(result)
             if "session_id" in data:

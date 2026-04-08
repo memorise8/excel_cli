@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel CLI Orchestrator</title>
+    <title>Excel AI Assistant</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -14,338 +14,406 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
+        /* ── Header (Excel-style toolbar) ── */
         header {
             background: #1e293b;
-            padding: 12px 24px;
+            padding: 8px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid #334155;
+            flex-shrink: 0;
         }
 
-        header h1 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #38bdf8;
-        }
+        header h1 { font-size: 15px; font-weight: 600; color: #38bdf8; }
 
         .header-controls {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             align-items: center;
         }
 
-        .provider-select {
+        .header-controls select, .header-controls button {
             background: #334155;
             color: #e2e8f0;
             border: 1px solid #475569;
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 13px;
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
         }
 
-        .file-info {
+        .header-controls button:hover { background: #475569; }
+        .file-info { font-size: 11px; color: #94a3b8; }
+
+        /* ── Sheet Tabs (Excel-style bottom tabs) ── */
+        .sheet-tabs {
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 2px;
+            overflow-x: auto;
+            flex-shrink: 0;
+            height: 32px;
+        }
+
+        .sheet-tabs::-webkit-scrollbar { height: 3px; }
+        .sheet-tabs::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+
+        .sheet-tab {
+            padding: 6px 14px;
             font-size: 12px;
             color: #94a3b8;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            white-space: nowrap;
+            transition: all 0.15s;
+            flex-shrink: 0;
         }
 
-        .main-area {
-            display: flex;
+        .sheet-tab:hover { background: #334155; color: #e2e8f0; }
+
+        .sheet-tab.active {
+            background: #0f172a;
+            color: #38bdf8;
+            border-color: #334155;
+            font-weight: 600;
+        }
+
+        .sheet-tab .dims {
+            font-size: 10px;
+            color: #64748b;
+            margin-left: 4px;
+        }
+
+        /* ── Spreadsheet Area (main content) ── */
+        .spreadsheet-area {
             flex: 1;
-            overflow: hidden;
+            overflow: auto;
+            background: #0f172a;
+            position: relative;
+            min-height: 0;
         }
 
-        .sidebar {
-            width: 300px;
-            background: #1e293b;
-            border-right: 1px solid #334155;
+        .spreadsheet-area.empty {
             display: flex;
-            flex-direction: column;
-            overflow-y: auto;
+            align-items: center;
+            justify-content: center;
         }
 
-        .sidebar h2 {
-            font-size: 13px;
-            color: #94a3b8;
-            padding: 12px 16px 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .welcome {
+            text-align: center;
+            color: #64748b;
         }
+
+        .welcome h2 { font-size: 22px; color: #94a3b8; margin-bottom: 6px; }
+        .welcome p { font-size: 13px; }
 
         .upload-zone {
-            margin: 12px 16px;
-            padding: 32px 16px;
+            margin: 20px auto;
+            padding: 40px 60px;
             border: 2px dashed #475569;
-            border-radius: 8px;
+            border-radius: 12px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
+            max-width: 400px;
         }
 
-        .upload-zone:hover {
-            border-color: #38bdf8;
-            background: rgba(56, 189, 248, 0.05);
-        }
+        .upload-zone:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.05); }
+        .upload-zone.active { border-color: #22c55e; background: rgba(34, 197, 94, 0.05); }
+        .upload-zone p { font-size: 13px; color: #94a3b8; }
+        .upload-zone .icon { font-size: 40px; margin-bottom: 8px; }
 
-        .upload-zone.active {
-            border-color: #22c55e;
-            background: rgba(34, 197, 94, 0.05);
-        }
-
-        .upload-zone p {
-            font-size: 13px;
-            color: #94a3b8;
-        }
-
-        .upload-zone .icon {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-
-        .sheet-list {
-            list-style: none;
-            padding: 0 8px;
-        }
-
-        .sheet-list li {
+        .recent-list { list-style: none; text-align: left; margin-top: 16px; }
+        .recent-list li {
             padding: 8px 12px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             display: flex;
             justify-content: space-between;
             transition: background 0.15s;
+            color: #94a3b8;
+        }
+        .recent-list li:hover { background: #1e293b; color: #e2e8f0; }
+        .recent-list .dims { color: #64748b; font-size: 10px; }
+
+        /* ── Excel-style Table ── */
+        .excel-table {
+            border-collapse: collapse;
+            font-size: 12px;
+            min-width: 100%;
         }
 
-        .sheet-list li:hover {
-            background: #334155;
-        }
-
-        .sheet-list li .dims {
-            color: #64748b;
+        .excel-table th {
+            background: #1e293b;
+            padding: 4px 8px;
+            text-align: center;
+            font-weight: 500;
+            color: #94a3b8;
+            border: 1px solid #334155;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            min-width: 80px;
             font-size: 11px;
         }
 
-        .preview-area {
-            padding: 0 16px 16px;
-            overflow-x: auto;
+        .excel-table th.row-header {
+            position: sticky;
+            left: 0;
+            z-index: 3;
+            min-width: 40px;
+            width: 40px;
+            color: #64748b;
         }
 
-        .preview-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-        }
-
-        .preview-table th {
-            background: #334155;
-            padding: 6px 10px;
-            text-align: left;
-            font-weight: 600;
-            color: #38bdf8;
-            border: 1px solid #475569;
+        .excel-table th.corner {
             position: sticky;
             top: 0;
+            left: 0;
+            z-index: 4;
+            min-width: 40px;
+            width: 40px;
         }
 
-        .preview-table td {
-            padding: 5px 10px;
-            border: 1px solid #334155;
+        .excel-table td {
+            padding: 3px 8px;
+            border: 1px solid #1e293b;
             color: #cbd5e1;
+            white-space: nowrap;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .preview-table tr:hover td {
-            background: rgba(56, 189, 248, 0.05);
+        .excel-table td.row-num {
+            background: #1e293b;
+            color: #64748b;
+            text-align: center;
+            font-size: 11px;
+            position: sticky;
+            left: 0;
+            z-index: 1;
+            min-width: 40px;
+            width: 40px;
         }
 
-        .chat-area {
-            flex: 1;
+        .excel-table tr:hover td:not(.row-num) { background: rgba(56, 189, 248, 0.05); }
+
+        .excel-table td.number { text-align: right; color: #60a5fa; }
+        .excel-table td.empty { color: #334155; }
+
+        .table-info {
+            padding: 4px 12px;
+            font-size: 11px;
+            color: #64748b;
+            background: #1e293b;
+            border-top: 1px solid #334155;
+            flex-shrink: 0;
+        }
+
+        /* ── Resize Handle ── */
+        .resize-handle {
+            height: 5px;
+            background: #334155;
+            cursor: ns-resize;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+
+        .resize-handle:hover { background: #38bdf8; }
+
+        /* ── Chat Panel (bottom) ── */
+        .chat-panel {
+            height: 250px;
+            min-height: 100px;
+            max-height: 60vh;
             display: flex;
             flex-direction: column;
+            background: #1e293b;
+            border-top: 1px solid #334155;
+            flex-shrink: 0;
         }
+
+        .chat-header {
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .chat-header button {
+            background: none;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 6px;
+        }
+
+        .chat-header button:hover { color: #e2e8f0; }
 
         .messages {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 8px 12px;
+            min-height: 0;
         }
 
-        .message {
-            margin-bottom: 16px;
-            max-width: 80%;
-        }
-
-        .message.user {
-            margin-left: auto;
-        }
+        .message { margin-bottom: 8px; max-width: 90%; }
+        .message.user { margin-left: auto; }
 
         .message .bubble {
-            padding: 10px 16px;
-            border-radius: 12px;
-            font-size: 14px;
-            line-height: 1.5;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.4;
             white-space: pre-wrap;
+            word-break: break-word;
         }
 
         .message.user .bubble {
             background: #2563eb;
             color: white;
-            border-bottom-right-radius: 4px;
+            border-bottom-right-radius: 2px;
         }
 
         .message.assistant .bubble {
-            background: #1e293b;
+            background: #0f172a;
             border: 1px solid #334155;
-            border-bottom-left-radius: 4px;
+            border-bottom-left-radius: 2px;
         }
 
-        .message .sender {
-            font-size: 11px;
-            color: #64748b;
-            margin-bottom: 4px;
-        }
-
-        .message.user .sender {
-            text-align: right;
-        }
+        .message .sender { font-size: 10px; color: #64748b; margin-bottom: 2px; }
+        .message.user .sender { text-align: right; }
 
         .input-area {
-            padding: 16px 20px;
-            background: #1e293b;
-            border-top: 1px solid #334155;
+            padding: 8px 12px;
             display: flex;
-            gap: 12px;
+            gap: 8px;
+            border-top: 1px solid #334155;
+            flex-shrink: 0;
         }
 
         .input-area input {
             flex: 1;
             background: #0f172a;
             border: 1px solid #475569;
-            border-radius: 8px;
-            padding: 10px 16px;
+            border-radius: 6px;
+            padding: 8px 12px;
             color: #e2e8f0;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
         }
 
-        .input-area input:focus {
-            border-color: #38bdf8;
-        }
-
-        .input-area input:disabled {
-            opacity: 0.5;
-        }
+        .input-area input:focus { border-color: #38bdf8; }
+        .input-area input:disabled { opacity: 0.5; }
 
         .input-area button {
             background: #2563eb;
             color: white;
             border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-size: 14px;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-size: 13px;
             cursor: pointer;
-            transition: background 0.15s;
         }
 
-        .input-area button:hover {
-            background: #1d4ed8;
-        }
-
-        .input-area button:disabled {
-            background: #475569;
-            cursor: not-allowed;
-        }
+        .input-area button:hover { background: #1d4ed8; }
+        .input-area button:disabled { background: #475569; cursor: not-allowed; }
 
         .loading {
             display: inline-block;
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border: 2px solid #475569;
             border-top-color: #38bdf8;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .welcome {
-            text-align: center;
-            padding: 60px 20px;
-            color: #64748b;
-        }
-
-        .welcome h2 {
-            font-size: 24px;
-            color: #94a3b8;
-            margin-bottom: 8px;
-        }
-
-        .welcome p {
-            font-size: 14px;
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <!-- Header -->
     <header>
-        <h1>Excel CLI Orchestrator</h1>
+        <h1>Excel AI Assistant</h1>
         <div class="header-controls">
-            <select id="provider" class="provider-select">
-                <option value="openai">OpenAI GPT-5.4</option>
-                <option value="gemini">Gemini 3.1 Pro</option>
+            <select id="provider">
+                <option value="openai">GPT-5.4</option>
+                <option value="gemini">Gemini 3.1</option>
             </select>
+            <button onclick="document.getElementById('fileInput').click()">Open File</button>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
             <span id="fileInfo" class="file-info"></span>
         </div>
     </header>
 
-    <div class="main-area">
-        <div class="sidebar">
-            <h2>File</h2>
+    <!-- Sheet Tabs -->
+    <div class="sheet-tabs" id="sheetTabs" style="display:none;"></div>
+
+    <!-- Main Spreadsheet Area -->
+    <div class="spreadsheet-area empty" id="spreadsheetArea">
+        <div class="welcome" id="welcomeScreen">
+            <h2>Excel AI Assistant</h2>
+            <p>Open an Excel file to view and analyze with AI</p>
             <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
                 <div class="icon">📊</div>
-                <p>Click or drag to upload .xlsx</p>
-                <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+                <p>Click to open .xlsx file<br>or drag & drop here</p>
             </div>
+            <ul class="recent-list" id="recentList"></ul>
+        </div>
+    </div>
 
-            <div id="recentSection">
-                <h2>Recent Files</h2>
-                <ul class="sheet-list" id="recentList">
-                    <li style="color:#64748b;font-size:12px">Loading...</li>
-                </ul>
-            </div>
+    <!-- Table Info Bar -->
+    <div class="table-info" id="tableInfo" style="display:none;">
+        <span id="tableInfoText"></span>
+    </div>
 
-            <div id="sheetSection" style="display:none;">
-                <h2>Sheets</h2>
-                <ul class="sheet-list" id="sheetList"></ul>
+    <!-- Resize Handle -->
+    <div class="resize-handle" id="resizeHandle"></div>
 
-                <h2>Preview</h2>
-                <div class="preview-area" id="previewArea"></div>
+    <!-- Chat Panel -->
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <span>AI Chat</span>
+            <div>
+                <button onclick="toggleChat()" title="Minimize">_</button>
             </div>
         </div>
-
-        <div class="chat-area">
-            <div class="messages" id="messages">
-                <div class="welcome">
-                    <h2>Excel AI Assistant</h2>
-                    <p>Upload an Excel file to start analyzing with AI.</p>
-                </div>
+        <div class="messages" id="messages">
+            <div class="message assistant">
+                <div class="sender">AI</div>
+                <div class="bubble">Upload an Excel file to start.</div>
             </div>
-
-            <div class="input-area">
-                <input type="text" id="chatInput" placeholder="Ask about your Excel file..." disabled
-                       onkeydown="if(event.key==='Enter') sendMessage()">
-                <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
-            </div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="chatInput" placeholder="Ask about your Excel data..."
+                   disabled onkeydown="if(event.key==='Enter') sendMessage()">
+            <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
         </div>
     </div>
 
     <script>
         let sessionId = null;
+        let currentSheet = null;
 
-        // Load recent files on page load
+        // ── Load recent files ──
         loadRecentFiles();
 
         async function loadRecentFiles() {
@@ -353,30 +421,44 @@
                 const resp = await fetch('/recent');
                 const files = await resp.json();
                 const list = document.getElementById('recentList');
+                if (files.length === 0) return;
 
-                if (files.length === 0) {
-                    list.innerHTML = '<li style="color:#64748b;font-size:12px">No recent files</li>';
-                    return;
-                }
-
-                list.innerHTML = '';
+                list.innerHTML = '<li style="color:#64748b;font-size:11px;padding:4px 0;pointer-events:none">Recent Files</li>';
                 files.forEach(f => {
                     const li = document.createElement('li');
                     const sheets = f.summary?.sheet_count || '?';
-                    const size = f.summary?.size_bytes ? (f.summary.size_bytes / 1024).toFixed(0) + 'KB' : '';
-                    li.innerHTML = `<span>${f.file_name}</span><span class="dims">${sheets} sheets ${size}</span>`;
+                    const size = f.summary?.size_bytes ? (f.summary.size_bytes / 1024 / 1024).toFixed(1) + 'MB' : '';
+                    li.innerHTML = `<span>${f.file_name}</span><span class="dims">${sheets} sheets / ${size}</span>`;
                     li.onclick = () => reopenFile(f.file_path, f.file_name);
                     list.appendChild(li);
                 });
-            } catch (e) {
-                document.getElementById('recentList').innerHTML =
-                    '<li style="color:#64748b;font-size:12px">Failed to load</li>';
-            }
+            } catch (e) {}
+        }
+
+        // ── File upload ──
+        const fileInput = document.getElementById('fileInput');
+        const uploadZone = document.getElementById('uploadZone');
+
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('active'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('active'));
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault(); uploadZone.classList.remove('active');
+            if (e.dataTransfer.files.length) { fileInput.files = e.dataTransfer.files; uploadFile(e.dataTransfer.files[0]); }
+        });
+        fileInput.addEventListener('change', () => { if (fileInput.files.length) uploadFile(fileInput.files[0]); });
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const resp = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await resp.json();
+                if (data.error) { alert(data.error); return; }
+                activateSession(data);
+            } catch (e) { alert('Upload failed: ' + e.message); }
         }
 
         async function reopenFile(filePath, fileName) {
-            uploadZone.innerHTML = '<div class="loading"></div><p>Opening...</p>';
-
             try {
                 const resp = await fetch('/reopen', {
                     method: 'POST',
@@ -384,170 +466,137 @@
                     body: JSON.stringify({ file_path: filePath }),
                 });
                 const data = await resp.json();
-
-                if (data.error) {
-                    uploadZone.innerHTML = `<p style="color:#ef4444">${data.error}</p>`;
-                    return;
-                }
-
-                sessionId = data.session_id;
-                document.getElementById('fileInfo').textContent = data.file_name;
-                document.getElementById('chatInput').disabled = false;
-                document.getElementById('sendBtn').disabled = false;
-
-                uploadZone.classList.add('active');
-                uploadZone.innerHTML = `<div class="icon">✅</div><p>${data.file_name}</p>`;
-
-                const summary = data.summary;
-                if (summary && summary.sheets) {
-                    document.getElementById('sheetSection').style.display = 'block';
-                    const sheetList = document.getElementById('sheetList');
-                    sheetList.innerHTML = '';
-                    summary.sheets.forEach(s => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `<span>${s.name}</span><span class="dims">${s.rows || 0}×${s.cols || 0}</span>`;
-                        li.onclick = () => previewSheet(s.name);
-                        sheetList.appendChild(li);
-                    });
-                }
-
-                document.getElementById('recentSection').style.display = 'none';
-
-                const msgs = document.getElementById('messages');
-                msgs.innerHTML = '';
-                addMessage('assistant', `${data.file_name} reopened. ${summary?.sheet_count || 0} sheets. Ask me anything!`);
-            } catch (e) {
-                uploadZone.innerHTML = `<p style="color:#ef4444">${e.message}</p>`;
-            }
+                if (data.error) { alert(data.error); return; }
+                activateSession(data);
+            } catch (e) { alert(e.message); }
         }
 
-        // File upload
-        const fileInput = document.getElementById('fileInput');
-        const uploadZone = document.getElementById('uploadZone');
+        function activateSession(data) {
+            sessionId = data.session_id;
+            document.getElementById('fileInfo').textContent = data.file_name;
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
 
-        // Drag & drop
-        uploadZone.addEventListener('dragover', e => {
-            e.preventDefault();
-            uploadZone.classList.add('active');
-        });
-        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('active'));
-        uploadZone.addEventListener('drop', e => {
-            e.preventDefault();
-            uploadZone.classList.remove('active');
-            if (e.dataTransfer.files.length) {
-                fileInput.files = e.dataTransfer.files;
-                uploadFile(e.dataTransfer.files[0]);
+            // Hide welcome, show spreadsheet
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('spreadsheetArea').classList.remove('empty');
+            document.getElementById('tableInfo').style.display = 'block';
+
+            // Build sheet tabs
+            const summary = data.summary;
+            if (summary && summary.sheets) {
+                const tabs = document.getElementById('sheetTabs');
+                tabs.style.display = 'flex';
+                tabs.innerHTML = '';
+                summary.sheets.forEach((s, i) => {
+                    const tab = document.createElement('div');
+                    tab.className = 'sheet-tab' + (i === 0 ? ' active' : '');
+                    tab.innerHTML = `${s.name}<span class="dims">${s.rows||0}r</span>`;
+                    tab.onclick = () => selectSheet(s.name, tab);
+                    tabs.appendChild(tab);
+                });
+
+                // Auto-select first visible sheet
+                const firstVisible = summary.sheets.find(s => s.visible !== false) || summary.sheets[0];
+                if (firstVisible) selectSheet(firstVisible.name, tabs.children[summary.sheets.indexOf(firstVisible)]);
             }
-        });
 
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length) uploadFile(fileInput.files[0]);
-        });
-
-        async function uploadFile(file) {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            uploadZone.innerHTML = '<div class="loading"></div><p>Uploading...</p>';
-
-            try {
-                const resp = await fetch('/upload', { method: 'POST', body: formData });
-                const data = await resp.json();
-
-                if (data.error) {
-                    uploadZone.innerHTML = `<p style="color:#ef4444">${data.error}</p>`;
-                    return;
-                }
-
-                sessionId = data.session_id;
-                document.getElementById('fileInfo').textContent = data.file_name;
-                document.getElementById('chatInput').disabled = false;
-                document.getElementById('sendBtn').disabled = false;
-
-                uploadZone.classList.add('active');
-                uploadZone.innerHTML = `<div class="icon">✅</div><p>${data.file_name}</p>`;
-
-                // Hide recent files, show sheets
-                document.getElementById('recentSection').style.display = 'none';
-                const summary = data.summary;
-                if (summary && summary.sheets) {
-                    document.getElementById('sheetSection').style.display = 'block';
-                    const list = document.getElementById('sheetList');
-                    list.innerHTML = '';
-                    summary.sheets.forEach(s => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `<span>${s.name}</span><span class="dims">${s.rows || 0}×${s.cols || 0}</span>`;
-                        li.onclick = () => previewSheet(s.name);
-                        list.appendChild(li);
-                    });
-                }
-
-                // Welcome message
-                const msgs = document.getElementById('messages');
-                msgs.innerHTML = '';
-                addMessage('assistant', `${data.file_name} loaded. ${summary.sheet_count || 0} sheets found. Ask me anything about this file!`);
-
-            } catch (e) {
-                uploadZone.innerHTML = `<p style="color:#ef4444">Upload failed: ${e.message}</p>`;
-            }
+            // Chat welcome
+            const msgs = document.getElementById('messages');
+            msgs.innerHTML = '';
+            addMessage('assistant', `${data.file_name} loaded (${summary?.sheet_count || 0} sheets). Ask me anything!`);
         }
 
-        async function previewSheet(sheetName) {
-            const area = document.getElementById('previewArea');
-            area.innerHTML = '<div class="loading"></div>';
+        async function selectSheet(name, tabEl) {
+            currentSheet = name;
+            // Update active tab
+            document.querySelectorAll('.sheet-tab').forEach(t => t.classList.remove('active'));
+            if (tabEl) tabEl.classList.add('active');
+
+            // Load sheet data
+            const area = document.getElementById('spreadsheetArea');
+            area.innerHTML = '<div style="padding:20px;color:#64748b"><div class="loading"></div> Loading...</div>';
 
             try {
                 const resp = await fetch('/preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId, sheet: sheetName }),
+                    body: JSON.stringify({ session_id: sessionId, sheet: name }),
                 });
                 const data = await resp.json();
 
                 if (data.error) {
-                    area.innerHTML = `<p style="color:#ef4444">${data.error}</p>`;
+                    area.innerHTML = `<div style="padding:20px;color:#ef4444">${data.error}</div>`;
                     return;
                 }
 
                 if (!data.rows || data.rows.length === 0) {
-                    area.innerHTML = '<p style="color:#94a3b8">Empty sheet</p>';
+                    area.innerHTML = '<div style="padding:20px;color:#64748b">Empty sheet</div>';
                     return;
                 }
 
-                // Render table (max 20 rows for preview)
-                const rows = data.rows.slice(0, 20);
-                let html = '<table class="preview-table"><thead><tr>';
-
-                // Header row
-                if (rows.length > 0) {
-                    rows[0].forEach((cell, i) => {
-                        const val = cell === null ? '' : cell;
-                        html += `<th>${val}</th>`;
-                    });
-                    html += '</tr></thead><tbody>';
-
-                    // Data rows
-                    rows.slice(1).forEach(row => {
-                        html += '<tr>';
-                        row.forEach(cell => {
-                            const val = cell === null ? '' : (typeof cell === 'object' ? JSON.stringify(cell) : cell);
-                            html += `<td>${val}</td>`;
-                        });
-                        html += '</tr>';
-                    });
-                }
-
-                html += '</tbody></table>';
-                if (data.rows.length > 20) {
-                    html += `<p style="color:#64748b;font-size:11px;margin-top:8px">Showing 20 of ${data.rows.length} rows</p>`;
-                }
-
-                area.innerHTML = html;
+                renderSpreadsheet(data);
             } catch (e) {
-                area.innerHTML = `<p style="color:#ef4444">${e.message}</p>`;
+                area.innerHTML = `<div style="padding:20px;color:#ef4444">${e.message}</div>`;
             }
         }
 
+        function renderSpreadsheet(data) {
+            const area = document.getElementById('spreadsheetArea');
+            const rows = data.rows;
+            const colCount = rows.length > 0 ? Math.max(...rows.map(r => r.length)) : 0;
+
+            let html = '<table class="excel-table"><thead><tr>';
+            // Corner cell
+            html += '<th class="corner"></th>';
+            // Column headers (A, B, C, ...)
+            for (let c = 0; c < colCount; c++) {
+                html += `<th>${colLetter(c)}</th>`;
+            }
+            html += '</tr></thead><tbody>';
+
+            rows.forEach((row, ri) => {
+                html += `<tr><td class="row-num">${ri + 1}</td>`;
+                for (let c = 0; c < colCount; c++) {
+                    const val = c < row.length ? row[c] : null;
+                    if (val === null || val === '') {
+                        html += '<td class="empty"></td>';
+                    } else if (typeof val === 'number') {
+                        html += `<td class="number">${formatNum(val)}</td>`;
+                    } else {
+                        html += `<td>${escHtml(String(val))}</td>`;
+                    }
+                }
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            area.innerHTML = html;
+
+            // Info bar
+            const info = document.getElementById('tableInfoText');
+            const total = data.total_rows || data.row_count || rows.length;
+            const totalCols = data.total_cols || colCount;
+            info.textContent = `${currentSheet} | ${total} rows x ${totalCols} cols | Showing ${rows.length} rows`;
+        }
+
+        function colLetter(i) {
+            let s = '';
+            i++;
+            while (i > 0) { i--; s = String.fromCharCode(65 + i % 26) + s; i = Math.floor(i / 26); }
+            return s;
+        }
+
+        function formatNum(n) {
+            if (Number.isInteger(n)) return n.toLocaleString();
+            return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        }
+
+        function escHtml(s) {
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        // ── Chat ──
         async function sendMessage() {
             const input = document.getElementById('chatInput');
             const message = input.value.trim();
@@ -557,40 +606,29 @@
             addMessage('user', message);
 
             const provider = document.getElementById('provider').value;
-            const sendBtn = document.getElementById('sendBtn');
             input.disabled = true;
-            sendBtn.disabled = true;
+            document.getElementById('sendBtn').disabled = true;
 
-            // Show loading
             const loadingId = addMessage('assistant', '<div class="loading"></div> Thinking...');
 
             try {
                 const resp = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        session_id: sessionId,
-                        message: message,
-                        provider: provider,
-                    }),
+                    body: JSON.stringify({ session_id: sessionId, message, provider }),
                 });
                 const data = await resp.json();
-
-                // Remove loading message
                 document.getElementById(loadingId)?.remove();
 
-                if (data.error) {
-                    addMessage('assistant', `Error: ${data.error}`);
-                } else {
-                    addMessage('assistant', data.response);
-                }
+                if (data.error) addMessage('assistant', `Error: ${data.error}`);
+                else addMessage('assistant', data.response);
             } catch (e) {
                 document.getElementById(loadingId)?.remove();
                 addMessage('assistant', `Error: ${e.message}`);
             }
 
             input.disabled = false;
-            sendBtn.disabled = false;
+            document.getElementById('sendBtn').disabled = false;
             input.focus();
         }
 
@@ -606,6 +644,40 @@
             msgs.scrollTop = msgs.scrollHeight;
             return id;
         }
+
+        // ── Chat toggle ──
+        let chatExpanded = true;
+        function toggleChat() {
+            const panel = document.getElementById('chatPanel');
+            chatExpanded = !chatExpanded;
+            panel.style.height = chatExpanded ? '250px' : '36px';
+            panel.style.minHeight = chatExpanded ? '100px' : '36px';
+        }
+
+        // ── Resize handle ──
+        const resizeHandle = document.getElementById('resizeHandle');
+        let isResizing = false;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'ns-resize';
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const panel = document.getElementById('chatPanel');
+            const newH = window.innerHeight - e.clientY;
+            if (newH > 80 && newH < window.innerHeight * 0.7) {
+                panel.style.height = newH + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isResizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        });
     </script>
 </body>
 </html>

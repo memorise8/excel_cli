@@ -30,6 +30,31 @@ def health():
     return jsonify({"status": "ok", "platform": sys.platform, "sessions": len(sessions)})
 
 
+UPLOAD_DIR = Path(__file__).parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    """Receive a file from Linux harness and save locally on Windows."""
+    if "file" not in request.files:
+        return jsonify({"error": "No file in request"}), 400
+
+    file = request.files["file"]
+    if not file.filename:
+        return jsonify({"error": "Empty filename"}), 400
+
+    save_path = UPLOAD_DIR / file.filename
+    file.save(str(save_path))
+
+    return jsonify({
+        "status": "ok",
+        "windows_path": str(save_path.resolve()),
+        "filename": file.filename,
+        "size": os.path.getsize(str(save_path)),
+    })
+
+
 @app.route("/open", methods=["POST"])
 def open_workbook():
     data = request.json

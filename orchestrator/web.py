@@ -12,6 +12,7 @@ import os
 import uuid
 from pathlib import Path
 
+import requests as http_requests
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify
 
@@ -42,11 +43,20 @@ RECENT_FILE = Path(__file__).parent / "uploads" / ".recent.json"
 
 
 def _detect_plugin(filename: str) -> str:
-    """Detect plugin from file extension."""
+    """Detect plugin from file extension. Prefer excel_com if COM server is reachable."""
     ext = Path(filename).suffix.lower()
     if ext in (".xlsx", ".xls", ".xlsm"):
+        # Check if COM server is available
+        com_url = os.environ.get("EXCEL_COM_SERVER", "")
+        if com_url:
+            try:
+                resp = http_requests.get(f"{com_url}/health", timeout=2)
+                if resp.status_code == 200:
+                    return "excel_com"
+            except Exception:
+                pass
         return "excel"
-    return "excel"  # Default fallback
+    return "excel"
 
 
 def load_recent_files() -> list[dict]:
