@@ -484,12 +484,43 @@ class ExcelComPlugin(HarnessPlugin):
             pass
         return result
 
+    def _download_from_windows(self, fp: str) -> bool:
+        """Download the modified file from Windows and overwrite local copy."""
+        try:
+            data = {"session_id": self._com_session_id or "default"}
+            resp = requests.post(
+                f"{self.server_url}/download",
+                json=data,
+                timeout=120,
+            )
+            if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("application/"):
+                with open(fp, "wb") as f:
+                    f.write(resp.content)
+                return True
+        except Exception:
+            pass
+        return False
+
     def _com_save(self, args: dict, fp: str) -> str:
-        return self._com_request("/save", {"path": args.get("path")})
+        result = self._com_request("/save", {"path": args.get("path")})
+        # Auto-download modified file back to Linux
+        if self._download_from_windows(fp):
+            try:
+                data = json.loads(result)
+                data["downloaded"] = True
+                data["local_path"] = fp
+                return json.dumps(data)
+            except json.JSONDecodeError:
+                pass
+        return result
 
     def _com_close(self, args: dict, fp: str) -> str:
         save = args.get("save", "false") == "true"
-        result = self._com_request("/close", {"save": save})
+        if save:
+            # Save and download before closing
+            self._com_request("/save", {})
+            self._download_from_windows(fp)
+        result = self._com_request("/close", {"save": False})  # Already saved above
         self._com_session_id = None
         return result
 

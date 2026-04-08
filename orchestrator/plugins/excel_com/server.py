@@ -83,6 +83,24 @@ def open_workbook():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/download", methods=["POST"])
+def download_file():
+    """Download the current workbook file back to the caller."""
+    from flask import send_file
+    data = request.json
+    session_id = data.get("session_id", "default")
+
+    bridge = sessions.get(session_id)
+    if not bridge or not bridge.path:
+        return jsonify({"error": "Session not found or no file open"}), 404
+
+    file_path = bridge.path
+    if not Path(file_path).exists():
+        return jsonify({"error": f"File not found: {file_path}"}), 404
+
+    return send_file(file_path, as_attachment=True, download_name=Path(file_path).name)
+
+
 @app.route("/close", methods=["POST"])
 def close_workbook():
     data = request.json
