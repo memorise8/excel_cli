@@ -1,0 +1,45 @@
+{
+  "_comment": "Example MCP configurations for connecting harness to various clients",
+
+  "openclaw": {
+    "_usage": "openclaw mcp set excel-harness '<json below>'",
+    "command": "python3",
+    "args": [
+      "/home/ruci/repo/develop/excel_cli/orchestrator/mcp_server.py",
+      "--plugin", "excel",
+      "--file", "/path/to/your/file.xlsx"
+    ]
+  },
+
+  "claude_code": {
+    "_usage": "Add to ~/.claude.json under mcpServers",
+    "excel-harness": {
+      "command": "python3",
+      "args": [
+        "/home/ruci/repo/develop/excel_cli/orchestrator/mcp_server.py",
+        "--plugin", "excel",
+        "--file", "/path/to/your/file.xlsx"
+      ]
+    }
+  },
+
+  "cursor": {
+    "_usage": "Add to .cursor/mcp.json in your project",
+    "mcpServers": {
+      "excel-harness": {
+        "command": "python3",
+        "args": [
+          "/home/ruci/repo/develop/excel_cli/orchestrator/mcp_server.py",
+          "--plugin", "excel",
+          "--file", "/path/to/your/file.xlsx"
+        ]
+      }
+    }
+  },
+
+  "sse_mode": {
+    "_usage": "For HTTP/SSE clients (run server first, then connect)",
+    "_start": "python3 orchestrator/mcp_server.py --plugin excel --file report.xlsx --transport sse --port 8100",
+    "url": "http://localhost:8100/sse"
+  }
+}

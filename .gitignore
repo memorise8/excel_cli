@@ -1,0 +1,13 @@
+/target
+Cargo.lock
+*.swp
+*.swo
+.DS_Store
+.env
+orchestrator/.env
+orchestrator/uploads/*.xlsx
+orchestrator/uploads/.recent.json
+*.xlsx.bak
+.omc/
+__pycache__/
+*.pyc

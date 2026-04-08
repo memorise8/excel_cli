@@ -1,0 +1,19 @@
+[package]
+name = "excel-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Core library for Excel file manipulation and Graph API integration"
+
+[dependencies]
+umya-spreadsheet = "2"
+calamine = "0.26"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+reqwest = { version = "0.12", features = ["json", "native-tls"] }
+oauth2 = "4"
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "5"

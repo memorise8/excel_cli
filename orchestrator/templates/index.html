@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel CLI Orchestrator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #1e293b;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #334155;
+        }
+
+        header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #38bdf8;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .provider-select {
+            background: #334155;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .file-info {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .main-area {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #1e293b;
+            border-right: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            font-size: 13px;
+            color: #94a3b8;
+            padding: 12px 16px 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .upload-zone {
+            margin: 12px 16px;
+            padding: 32px 16px;
+            border: 2px dashed #475569;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-zone:hover {
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .upload-zone.active {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .upload-zone p {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .upload-zone .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .sheet-list {
+            list-style: none;
+            padding: 0 8px;
+        }
+
+        .sheet-list li {
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            transition: background 0.15s;
+        }
+
+        .sheet-list li:hover {
+            background: #334155;
+        }
+
+        .sheet-list li .dims {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .preview-area {
+            padding: 0 16px 16px;
+            overflow-x: auto;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .preview-table th {
+            background: #334155;
+            padding: 6px 10px;
+            text-align: left;
+            font-weight: 600;
+            color: #38bdf8;
+            border: 1px solid #475569;
+            position: sticky;
+            top: 0;
+        }
+
+        .preview-table td {
+            padding: 5px 10px;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+        }
+
+        .preview-table tr:hover td {
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            margin-left: auto;
+        }
+
+        .message .bubble {
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .message.user .bubble {
+            background: #2563eb;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .bubble {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message .sender {
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .message.user .sender {
+            text-align: right;
+        }
+
+        .input-area {
+            padding: 16px 20px;
+            background: #1e293b;
+            border-top: 1px solid #334155;
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-area input {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 10px 16px;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .input-area input:focus {
+            border-color: #38bdf8;
+        }
+
+        .input-area input:disabled {
+            opacity: 0.5;
+        }
+
+        .input-area button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .input-area button:hover {
+            background: #1d4ed8;
+        }
+
+        .input-area button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #475569;
+            border-top-color: #38bdf8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .welcome {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .welcome h2 {
+            font-size: 24px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .welcome p {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Excel CLI Orchestrator</h1>
+        <div class="header-controls">
+            <select id="provider" class="provider-select">
+                <option value="openai">OpenAI GPT-5.4</option>
+                <option value="gemini">Gemini 3.1 Pro</option>
+            </select>
+            <span id="fileInfo" class="file-info"></span>
+        </div>
+    </header>
+
+    <div class="main-area">
+        <div class="sidebar">
+            <h2>File</h2>
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                <div class="icon">📊</div>
+                <p>Click or drag to upload .xlsx</p>
+                <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+            </div>
+
+            <div id="recentSection">
+                <h2>Recent Files</h2>
+                <ul class="sheet-list" id="recentList">
+                    <li style="color:#64748b;font-size:12px">Loading...</li>
+                </ul>
+            </div>
+
+            <div id="sheetSection" style="display:none;">
+                <h2>Sheets</h2>
+                <ul class="sheet-list" id="sheetList"></ul>
+
+                <h2>Preview</h2>
+                <div class="preview-area" id="previewArea"></div>
+            </div>
+        </div>
+
+        <div class="chat-area">
+            <div class="messages" id="messages">
+                <div class="welcome">
+                    <h2>Excel AI Assistant</h2>
+                    <p>Upload an Excel file to start analyzing with AI.</p>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="chatInput" placeholder="Ask about your Excel file..." disabled
+                       onkeydown="if(event.key==='Enter') sendMessage()">
+                <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = null;
+
+        // Load recent files on page load
+        loadRecentFiles();
+
+        async function loadRecentFiles() {
+            try {
+                const resp = await fetch('/recent');
+                const files = await resp.json();
+                const list = document.getElementById('recentList');
+
+                if (files.length === 0) {
+                    list.innerHTML = '<li style="color:#64748b;font-size:12px">No recent files</li>';
+                    return;
+                }
+
+                list.innerHTML = '';
+                files.forEach(f => {
+                    const li = document.createElement('li');
+                    const sheets = f.summary?.sheet_count || '?';
+                    const size = f.summary?.size_bytes ? (f.summary.size_bytes / 1024).toFixed(0) + 'KB' : '';
+                    li.innerHTML = `<span>${f.file_name}</span><span class="dims">${sheets} sheets ${size}</span>`;
+                    li.onclick = () => reopenFile(f.file_path, f.file_name);
+                    list.appendChild(li);
+                });
+            } catch (e) {
+                document.getElementById('recentList').innerHTML =
+                    '<li style="color:#64748b;font-size:12px">Failed to load</li>';
+            }
+        }
+
+        async function reopenFile(filePath, fileName) {
+            uploadZone.innerHTML = '<div class="loading"></div><p>Opening...</p>';
+
+            try {
+                const resp = await fetch('/reopen', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_path: filePath }),
+                });
+                const data = await resp.json();
+
+                if (data.error) {
+                    uploadZone.innerHTML = `<p style="color:#ef4444">${data.error}</p>`;
+                    return;
+                }
+
+                sessionId = data.session_id;
+                document.getElementById('fileInfo').textContent = data.file_name;
+                document.getElementById('chatInput').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+
+                uploadZone.classList.add('active');
+                uploadZone.innerHTML = `<div class="icon">✅</div><p>${data.file_name}</p>`;
+
+                const summary = data.summary;
+                if (summary && summary.sheets) {
+                    document.getElementById('sheetSection').style.display = 'block';
+                    const sheetList = document.getElementById('sheetList');
+                    sheetList.innerHTML = '';
+                    summary.sheets.forEach(s => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span>${s.name}</span><span class="dims">${s.rows || 0}×${s.cols || 0}</span>`;
+                        li.onclick = () => previewSheet(s.name);
+                        sheetList.appendChild(li);
+                    });
+                }
+
+                document.getElementById('recentSection').style.display = 'none';
+
+                const msgs = document.getElementById('messages');
+                msgs.innerHTML = '';
+                addMessage('assistant', `${data.file_name} reopened. ${summary?.sheet_count || 0} sheets. Ask me anything!`);
+            } catch (e) {
+                uploadZone.innerHTML = `<p style="color:#ef4444">${e.message}</p>`;
+            }
+        }
+
+        // File upload
+        const fileInput = document.getElementById('fileInput');
+        const uploadZone = document.getElementById('uploadZone');
+
+        // Drag & drop
+        uploadZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            uploadZone.classList.add('active');
+        });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('active'));
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadZone.classList.remove('active');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                uploadFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) uploadFile(fileInput.files[0]);
+        });
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            uploadZone.innerHTML = '<div class="loading"></div><p>Uploading...</p>';
+
+            try {
+                const resp = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await resp.json();
+
+                if (data.error) {
+                    uploadZone.innerHTML = `<p style="color:#ef4444">${data.error}</p>`;
+                    return;
+                }
+
+                sessionId = data.session_id;
+                document.getElementById('fileInfo').textContent = data.file_name;
+                document.getElementById('chatInput').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+
+                uploadZone.classList.add('active');
+                uploadZone.innerHTML = `<div class="icon">✅</div><p>${data.file_name}</p>`;
+
+                // Hide recent files, show sheets
+                document.getElementById('recentSection').style.display = 'none';
+                const summary = data.summary;
+                if (summary && summary.sheets) {
+                    document.getElementById('sheetSection').style.display = 'block';
+                    const list = document.getElementById('sheetList');
+                    list.innerHTML = '';
+                    summary.sheets.forEach(s => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span>${s.name}</span><span class="dims">${s.rows || 0}×${s.cols || 0}</span>`;
+                        li.onclick = () => previewSheet(s.name);
+                        list.appendChild(li);
+                    });
+                }
+
+                // Welcome message
+                const msgs = document.getElementById('messages');
+                msgs.innerHTML = '';
+                addMessage('assistant', `${data.file_name} loaded. ${summary.sheet_count || 0} sheets found. Ask me anything about this file!`);
+
+            } catch (e) {
+                uploadZone.innerHTML = `<p style="color:#ef4444">Upload failed: ${e.message}</p>`;
+            }
+        }
+
+        async function previewSheet(sheetName) {
+            const area = document.getElementById('previewArea');
+            area.innerHTML = '<div class="loading"></div>';
+
+            try {
+                const resp = await fetch('/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, sheet: sheetName }),
+                });
+                const data = await resp.json();
+
+                if (data.error) {
+                    area.innerHTML = `<p style="color:#ef4444">${data.error}</p>`;
+                    return;
+                }
+
+                if (!data.rows || data.rows.length === 0) {
+                    area.innerHTML = '<p style="color:#94a3b8">Empty sheet</p>';
+                    return;
+                }
+
+                // Render table (max 20 rows for preview)
+                const rows = data.rows.slice(0, 20);
+                let html = '<table class="preview-table"><thead><tr>';
+
+                // Header row
+                if (rows.length > 0) {
+                    rows[0].forEach((cell, i) => {
+                        const val = cell === null ? '' : cell;
+                        html += `<th>${val}</th>`;
+                    });
+                    html += '</tr></thead><tbody>';
+
+                    // Data rows
+                    rows.slice(1).forEach(row => {
+                        html += '<tr>';
+                        row.forEach(cell => {
+                            const val = cell === null ? '' : (typeof cell === 'object' ? JSON.stringify(cell) : cell);
+                            html += `<td>${val}</td>`;
+                        });
+                        html += '</tr>';
+                    });
+                }
+
+                html += '</tbody></table>';
+                if (data.rows.length > 20) {
+                    html += `<p style="color:#64748b;font-size:11px;margin-top:8px">Showing 20 of ${data.rows.length} rows</p>`;
+                }
+
+                area.innerHTML = html;
+            } catch (e) {
+                area.innerHTML = `<p style="color:#ef4444">${e.message}</p>`;
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message || !sessionId) return;
+
+            input.value = '';
+            addMessage('user', message);
+
+            const provider = document.getElementById('provider').value;
+            const sendBtn = document.getElementById('sendBtn');
+            input.disabled = true;
+            sendBtn.disabled = true;
+
+            // Show loading
+            const loadingId = addMessage('assistant', '<div class="loading"></div> Thinking...');
+
+            try {
+                const resp = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        message: message,
+                        provider: provider,
+                    }),
+                });
+                const data = await resp.json();
+
+                // Remove loading message
+                document.getElementById(loadingId)?.remove();
+
+                if (data.error) {
+                    addMessage('assistant', `Error: ${data.error}`);
+                } else {
+                    addMessage('assistant', data.response);
+                }
+            } catch (e) {
+                document.getElementById(loadingId)?.remove();
+                addMessage('assistant', `Error: ${e.message}`);
+            }
+
+            input.disabled = false;
+            sendBtn.disabled = false;
+            input.focus();
+        }
+
+        function addMessage(role, content) {
+            const msgs = document.getElementById('messages');
+            const id = 'msg-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = `message ${role}`;
+            const sender = role === 'user' ? 'You' : 'AI';
+            div.innerHTML = `<div class="sender">${sender}</div><div class="bubble">${content}</div>`;
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+            return id;
+        }
+    </script>
+</body>
+</html>
