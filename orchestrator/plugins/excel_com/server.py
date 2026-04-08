@@ -352,4 +352,6 @@ if __name__ == "__main__":
     print("           /pivot/create, /pivot/refresh, /pivot/list")
     print("           /chart/create, /sheets, /macro/run, /export/pdf")
 
-    app.run(host=args.host, port=args.port, debug=False)
+    # CRITICAL: threaded=False — COM objects cannot cross thread boundaries.
+    # All requests must be handled on the same thread that created the COM object.
+    app.run(host=args.host, port=args.port, debug=False, threaded=False)
