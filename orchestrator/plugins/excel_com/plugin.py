@@ -462,9 +462,13 @@ class ExcelComPlugin(HarnessPlugin):
                 )
             if resp.status_code == 200:
                 data = resp.json()
-                return data.get("windows_path")
-        except Exception:
-            pass
+                wp = data.get("windows_path")
+                print(f"[COM] Uploaded to Windows: {wp}")
+                return wp
+            else:
+                print(f"[COM] Upload failed: {resp.status_code} {resp.text[:200]}")
+        except Exception as e:
+            print(f"[COM] Upload error: {e}")
         return None
 
     def _com_open(self, args: dict, fp: str) -> str:

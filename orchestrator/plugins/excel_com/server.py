@@ -56,9 +56,11 @@ def upload_file():
     save_path = UPLOAD_DIR / unique_name
     file.save(str(save_path))
 
+    resolved = str(save_path.resolve())
     return jsonify({
         "status": "ok",
-        "windows_path": str(save_path.resolve()),
+        "windows_path": resolved,
+        "windows_path_forward": resolved.replace("\\", "/"),
         "filename": unique_name,
         "size": os.path.getsize(str(save_path)),
     })
