@@ -45,6 +45,8 @@ class ExcelBridge:
                 "ExcelBridge requires Windows + pywin32. "
                 "Install: pip install pywin32"
             )
+        import pythoncom
+        pythoncom.CoInitialize()
         import win32com.client
         self.excel = win32com.client.Dispatch("Excel.Application")
         self.excel.Visible = visible
@@ -64,6 +66,8 @@ class ExcelBridge:
             self.wb.Close(SaveChanges=save)
             self.wb = None
         self.excel.Quit()
+        import pythoncom
+        pythoncom.CoUninitialize()
 
     def save(self, path: str | None = None) -> str:
         """Save workbook (optionally to a new path)."""
