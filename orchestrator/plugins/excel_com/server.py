@@ -16,10 +16,12 @@ import sys
 from pathlib import Path
 
 from flask import Flask, request, jsonify
+from werkzeug.utils import secure_filename
 
 from bridge import ExcelBridge
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max upload
 
 # Active workbook sessions
 sessions: dict[str, ExcelBridge] = {}
@@ -44,13 +46,14 @@ def upload_file():
     if not file.filename:
         return jsonify({"error": "Empty filename"}), 400
 
-    save_path = UPLOAD_DIR / file.filename
+    safe_name = secure_filename(file.filename) or "upload.xlsx"
+    save_path = UPLOAD_DIR / safe_name
     file.save(str(save_path))
 
     return jsonify({
         "status": "ok",
         "windows_path": str(save_path.resolve()),
-        "filename": file.filename,
+        "filename": safe_name,
         "size": os.path.getsize(str(save_path)),
     })
 

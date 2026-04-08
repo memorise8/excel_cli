@@ -49,6 +49,7 @@ class ExcelBridge:
         pythoncom.CoInitialize()
         import win32com.client
         self.excel = win32com.client.Dispatch("Excel.Application")
+        self._com_initialized = True
         self.excel.Visible = visible
         self.excel.DisplayAlerts = False
         self.wb = None
@@ -65,9 +66,26 @@ class ExcelBridge:
         if self.wb:
             self.wb.Close(SaveChanges=save)
             self.wb = None
-        self.excel.Quit()
-        import pythoncom
-        pythoncom.CoUninitialize()
+        if self.excel:
+            self.excel.Quit()
+            self.excel = None
+        if self._com_initialized:
+            import pythoncom
+            pythoncom.CoUninitialize()
+            self._com_initialized = False
+
+    def __del__(self):
+        """Ensure COM cleanup on garbage collection."""
+        try:
+            self.close(save=False)
+        except Exception:
+            pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close(save=False)
 
     def save(self, path: str | None = None) -> str:
         """Save workbook (optionally to a new path)."""
