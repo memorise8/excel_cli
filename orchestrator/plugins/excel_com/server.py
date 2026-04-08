@@ -32,7 +32,8 @@ def health():
     return jsonify({"status": "ok", "platform": sys.platform, "sessions": len(sessions)})
 
 
-UPLOAD_DIR = Path(__file__).parent / "uploads"
+import tempfile
+UPLOAD_DIR = Path(tempfile.gettempdir()) / "excel_com_uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 
@@ -46,14 +47,19 @@ def upload_file():
     if not file.filename:
         return jsonify({"error": "Empty filename"}), 400
 
+    import time
     safe_name = secure_filename(file.filename) or "upload.xlsx"
-    save_path = UPLOAD_DIR / safe_name
+    # Add timestamp to avoid overwrite conflicts when Excel has file open
+    stem = Path(safe_name).stem
+    ext = Path(safe_name).suffix
+    unique_name = f"{stem}_{int(time.time())}{ext}"
+    save_path = UPLOAD_DIR / unique_name
     file.save(str(save_path))
 
     return jsonify({
         "status": "ok",
         "windows_path": str(save_path.resolve()),
-        "filename": safe_name,
+        "filename": unique_name,
         "size": os.path.getsize(str(save_path)),
     })
 
